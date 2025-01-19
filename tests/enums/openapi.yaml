@@ -1,0 +1,56 @@
+openapi: 3.0.3
+info:
+  title: Enum Testing API
+  description: An API for testing enum values of different types.
+  version: 1.0.0
+paths:
+  /enums:
+    get:
+      summary: Get all enum types
+      operationId: getAllEnumTypes
+      responses:
+        '200':
+          description: A response containing enums of all valid types.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllEnumTypes'
+components:
+  schemas:
+    AllEnumTypes:
+      type: object
+      properties:
+        string_enum:
+          type: string
+          enum:
+            - value1
+            - value2
+            - value3
+        integer_enum:
+          type: integer
+          enum:
+            - 1
+            - 2
+            - 3
+        number_enum:
+          type: number
+          enum:
+            - 1.1
+            - 2.2
+            - 3.3
+        integer_with_format_enum:
+          type: integer
+          format: int64
+          enum:
+            - 1000000000000000000
+            - 2000000000000000000
+        number_with_format_enum:
+          type: number
+          format: float
+          enum:
+            - 3.14
+            - 1.618
+      required:
+        - string_enum
+        - integer_enum
+        - number_enum
