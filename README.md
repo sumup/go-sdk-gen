@@ -4,6 +4,12 @@
 
 # go-sdk-gen
 
+[![Stars](https://img.shields.io/github/stars/sumup/go-sdk-gen?style=social)](https://github.com/sumup/go-sdk-gen/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/sumup/go-sdk-gen.svg)](https://pkg.go.dev/github.com/sumup/go-sdk-gen)
+[![CI Status](https://github.com/sumup/go-sdk-gen/workflows/CI/badge.svg)](https://github.com/sumup/go-sdk-gen/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/sumup/go-sdk-gen)](./LICENSE)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.1%20adopted-ff69b4.svg)](https://github.com/sumup/go-sdk-gen/tree/main/CODE_OF_CONDUCT.md)
+
 `go-sdk-gen` is a highly opinionated OpenAPI specs to SDK generator for [Go](https://go.dev/).
 
 </div>
