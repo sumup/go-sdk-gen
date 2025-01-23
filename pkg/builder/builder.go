@@ -46,8 +46,12 @@ type Builder struct {
 type Config struct {
 	// Out is the output directory that the SDK will be written to.
 	Out string
-	// Pkg is the name of the package.
-	Pkg string
+	// PkgName is the name of the package.
+	PkgName string
+	// Module is the name of golang module.
+	Module string
+	// Name is the name of the product / service.
+	Name string
 }
 
 type Option func(b *Builder)

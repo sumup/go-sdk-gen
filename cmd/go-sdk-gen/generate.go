@@ -55,8 +55,9 @@ func Generate() *cli.Command {
 			}
 
 			builder := builder.New(builder.Config{
-				Out: out,
-				Pkg: pkgName,
+				Out:     out,
+				PkgName: pkgName,
+				Name:    name,
 			})
 
 			if err := builder.Load(spec); err != nil {
