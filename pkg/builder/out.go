@@ -67,7 +67,7 @@ func (b *Builder) generateTagFile(tagName string, paths *openapi3.Paths) error {
 	defer f.Close()
 
 	if err := b.writeTagFile(f, templateData{
-		PackageName: b.cfg.Pkg,
+		PackageName: b.cfg.PkgName,
 		Types:       types,
 		Service:     strcase.ToCamel(tag.Name) + "Service",
 		Methods:     methods,
@@ -100,7 +100,7 @@ func (b *Builder) writeClientFile(fname string, tags []string) error {
 	slices.Sort(tags)
 
 	if err := b.templates.ExecuteTemplate(f, "client.go.tmpl", map[string]any{
-		"PackageName": b.cfg.Pkg,
+		"PackageName": b.cfg.PkgName,
 		"Tags":        tags,
 		"Version":     b.spec.Info.Version,
 	}); err != nil {
@@ -118,7 +118,7 @@ func (b *Builder) writeTypesFile(fname string) error {
 	defer f.Close()
 
 	if err := b.templates.ExecuteTemplate(f, "types.go.tmpl", map[string]any{
-		"PackageName": b.cfg.Pkg,
+		"PackageName": b.cfg.PkgName,
 	}); err != nil {
 		return fmt.Errorf("generate client: %w", err)
 	}
