@@ -104,6 +104,15 @@ func (b *Builder) Load(spec *openapi3.T) error {
 	return nil
 }
 
+// Bootstrap can be used to bootstrap new repository.
+func (b *Builder) Bootstrap() error {
+	if err := b.addBaseFiles(b.cfg.Out); err != nil {
+		return fmt.Errorf("add base files: %w", err)
+	}
+
+	return nil
+}
+
 // Build the SDK and write it to designated output directory.
 // The OpenAPI specs first need to be loaded using [Builder.Load].
 func (b *Builder) Build() error {

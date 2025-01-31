@@ -140,3 +140,29 @@ func openGeneratedFile(filename string) (*os.File, error) {
 
 	return f, nil
 }
+
+func (b *Builder) addBaseFiles(outDir string) error {
+	for _, fileName := range []string{
+		"version.go",
+		"release-please-config.json",
+	} {
+		file := filepath.Join(outDir, fileName)
+		f, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0o755))
+		if err != nil {
+			return fmt.Errorf("create %q: %w", file, err)
+		}
+
+		if err := b.templates.ExecuteTemplate(f, fmt.Sprintf("%s.tmpl", fileName), map[string]any{
+			"PackageName": b.cfg.PkgName,
+			"Name":        b.cfg.Name,
+		}); err != nil {
+			return fmt.Errorf("generate client: %w", err)
+		}
+
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("close file %q: %w", file, err)
+		}
+	}
+
+	return nil
+}

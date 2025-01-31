@@ -20,6 +20,7 @@ func Generate() *cli.Command {
 		modName string
 		pkgName string
 		name    string
+		force   bool
 	)
 
 	return &cli.Command{
@@ -37,18 +38,6 @@ func Generate() *cli.Command {
 				return fmt.Errorf("create output directory %q: %w", out, err)
 			}
 
-			_, err := os.Stat(path.Join(out, "go.mod"))
-			newRepo := errors.Is(err, os.ErrNotExist)
-			if newRepo {
-				slog.Info("bootstrapping new package")
-
-				cmd := exec.Command("go", "mod", "init", modName)
-				cmd.Dir = out
-				if err := cmd.Run(); err != nil {
-					return fmt.Errorf("init go module: %w", err)
-				}
-			}
-
 			spec, err := openapi3.NewLoader().LoadFromFile(specs)
 			if err != nil {
 				return err
@@ -56,12 +45,31 @@ func Generate() *cli.Command {
 
 			builder := builder.New(builder.Config{
 				Out:     out,
+				Module:  modName,
 				PkgName: pkgName,
 				Name:    name,
 			})
 
 			if err := builder.Load(spec); err != nil {
 				return fmt.Errorf("load spec: %w", err)
+			}
+
+			if force {
+				slog.Info("bootstrapping new package")
+
+				_, err := os.Stat(path.Join(out, "go.mod"))
+				newRepo := errors.Is(err, os.ErrNotExist)
+				if newRepo {
+					cmd := exec.Command("go", "mod", "init", modName)
+					cmd.Dir = out
+					if err := cmd.Run(); err != nil {
+						return fmt.Errorf("init go module: %w", err)
+					}
+				}
+
+				if err := builder.Bootstrap(); err != nil {
+					return fmt.Errorf("boostrap package: %w", err)
+				}
 			}
 
 			if err := builder.Build(); err != nil {
@@ -107,6 +115,12 @@ func Generate() *cli.Command {
 				Usage:       "name of your service",
 				Required:    true,
 				Destination: &name,
+			},
+			&cli.BoolFlag{
+				Name:        "force",
+				Aliases:     []string{"f"},
+				Usage:       "force creation of all base files that can later be modified by the user",
+				Destination: &force,
 			},
 		},
 	}
