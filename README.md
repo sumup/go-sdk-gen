@@ -18,6 +18,8 @@
 
 There are existing tools for generating Golang clients based on OpenAPI specs but the generated code often isn't clean and easy to read. `go-sdk-gen` aims to generated code that's closer to what one would write if writing the SDK manually. For example, splitting the generated code into individual files that themselves are well organized.
 
+On the other end of the spectrum lay SDK generators like [fern](https://buildwithfern.com/), [stainless](https://www.stainless.com/), or [speakeasy](https://www.speakeasy.com/). Those are capable of generating high-quality SDKs but have steep pricing and you are vendor-locking yourself in.
+
 If you want to see how this looks, checkout the [examples](./examples).
 
 ## Quickstart
