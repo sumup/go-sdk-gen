@@ -26,6 +26,11 @@ type TypeDeclaration struct {
 	Schema    *openapi3.Schema
 }
 
+type OneOfDeclaration struct {
+	Name    string
+	Options []string
+}
+
 // StructField holds the information for StructField of a type.
 type StructField struct {
 	// Name of the field

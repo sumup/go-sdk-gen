@@ -31,7 +31,7 @@ type Method struct {
 	Description  string
 	HTTPMethod   string
 	FunctionName string
-	ResponseType string
+	ResponseType *ResponseType
 	Path         string
 	PathParams   []Parameter
 	QueryParams  *Parameter
@@ -206,7 +206,6 @@ func (b *Builder) operationToMethod(method, path string, o *openapi3.Operation) 
 
 	slog.Info("generating method",
 		slog.String("id", o.OperationID),
-		slog.String("response_type", respType),
 		slog.String("method_name", methodName),
 	)
 
@@ -223,22 +222,70 @@ func (b *Builder) operationToMethod(method, path string, o *openapi3.Operation) 
 	}, nil
 }
 
-func (b *Builder) getSuccessResponseType(o *openapi3.Operation) (string, error) {
-	resp, code, err := b.getSuccessResponse(o)
-	if err != nil {
-		return "", err
+type ResponseType struct {
+	Type    string
+	IsOneOf bool
+}
+
+func (b *Builder) getSuccessResponseType(o *openapi3.Operation) (*ResponseType, error) {
+	type responseInfo struct {
+		content *openapi3.MediaType
+		code    string
 	}
 
-	if resp == nil {
-		return "", nil
+	sucessResponses := make([]responseInfo, 0)
+	for name, response := range o.Responses.Map() {
+		// TODO: throw error here?
+		if name == "default" {
+			name = "400"
+		}
+
+		statusCode, err := strconv.Atoi(strings.ReplaceAll(name, "XX", "00"))
+		if err != nil {
+			return nil, fmt.Errorf("error converting %q to an integer: %w", name, err)
+		}
+
+		if statusCode < 200 || statusCode >= 300 {
+			// Continue early, we just want the successful response.
+			continue
+		}
+
+		if response.Ref != "" {
+			ref := strings.TrimPrefix(response.Ref, "#/components/responses/")
+			response = b.spec.Components.Responses[ref]
+		}
+
+		if content, ok := response.Value.Content["application/json"]; ok {
+			sucessResponses = append(sucessResponses, responseInfo{
+				content: content,
+				code:    name,
+			})
+		}
 	}
 
-	if resp.Schema.Ref != "" {
-		return getReferenceSchema(resp.Schema), nil
+	if len(sucessResponses) == 0 {
+		return nil, nil
+	}
+
+	if len(sucessResponses) == 1 {
+		resp := sucessResponses[0]
+		if resp.content.Schema.Ref != "" {
+			return &ResponseType{
+				Type: getReferenceSchema(resp.content.Schema),
+			}, nil
+		}
+
+		operationName := strcase.ToCamel(o.OperationID)
+		return &ResponseType{
+			Type: getResponseName(operationName, resp.code, resp.content),
+		}, nil
 	}
 
 	operationName := strcase.ToCamel(o.OperationID)
-	return getResponseName(operationName, code, resp), nil
+	return &ResponseType{
+		Type:    operationName + "Response",
+		IsOneOf: true,
+	}, nil
 }
 
 func responseToType(operationName string, resp *openapi3.ResponseRef, code string) string {
@@ -260,36 +307,6 @@ func responseToType(operationName string, resp *openapi3.ResponseRef, code strin
 	}
 
 	return ""
-}
-
-func (b *Builder) getSuccessResponse(o *openapi3.Operation) (*openapi3.MediaType, string, error) {
-	for name, response := range o.Responses.Map() {
-		// TODO: throw error here?
-		if name == "default" {
-			name = "400"
-		}
-
-		statusCode, err := strconv.Atoi(strings.ReplaceAll(name, "XX", "00"))
-		if err != nil {
-			return nil, "", fmt.Errorf("error converting %q to an integer: %w", name, err)
-		}
-
-		if statusCode < 200 || statusCode >= 300 {
-			// Continue early, we just want the successful response.
-			continue
-		}
-
-		if response.Ref != "" {
-			ref := strings.TrimPrefix(response.Ref, "#/components/responses/")
-			response = b.spec.Components.Responses[ref]
-		}
-
-		if content, ok := response.Value.Content["application/json"]; ok {
-			return content, name, nil
-		}
-	}
-
-	return nil, "", nil
 }
 
 func buildPathParams(paramType string, params openapi3.Parameters) ([]Parameter, error) {

@@ -191,9 +191,14 @@ func (b *Builder) pathsToResponseTypes(paths *openapi3.Paths) []Writable {
 
 			responses := opSpec.Responses.Map()
 			responseKeys := slices.Collect(maps.Keys(responses))
+
 			slices.Sort(responseKeys)
+
+			var successResponses []string
 			for _, code := range responseKeys {
 				response := responses[code]
+				isSuccess := strings.HasPrefix(code, "2")
+				isErr := code == "default" || strings.HasPrefix(code, "4") || strings.HasPrefix(code, "5")
 
 				if response.Ref != "" {
 					ref := strings.TrimPrefix(response.Ref, "#/components/responses/")
@@ -206,15 +211,34 @@ func (b *Builder) pathsToResponseTypes(paths *openapi3.Paths) []Writable {
 				}
 
 				if content.Schema.Ref != "" {
+					if isSuccess {
+						name := strcase.ToCamel(strings.TrimPrefix(content.Schema.Ref, "#/components/schemas/"))
+						successResponses = append(successResponses, name)
+					}
 					// schemas are handled separately, here we only care about inline schemas in the operation
 					continue
 				}
 
 				name := getResponseName(operationName, code, content)
-				isErr := code == "default" || strings.HasPrefix(code, "4") || strings.HasPrefix(code, "5")
 
 				objects := generateSchemaComponents(name, content.Schema, isErr)
 				paramTypes = append(paramTypes, objects...)
+
+				if strings.HasPrefix(code, "2") {
+					resp, _ := objects[0].(*TypeDeclaration)
+					successResponses = append(successResponses, resp.Name)
+				}
+			}
+
+			slog.Info("multiple success responses found",
+				slog.Any("responses", successResponses),
+			)
+
+			if len(successResponses) > 1 {
+				paramTypes = append(paramTypes, &OneOfDeclaration{
+					Name:    operationName + "Response",
+					Options: successResponses,
+				})
 			}
 		}
 	}
@@ -228,12 +252,6 @@ func (b *Builder) pathsToResponseTypes(paths *openapi3.Paths) []Writable {
 func generateSchemaComponents(name string, schema *openapi3.SchemaRef, isErr bool) []Writable {
 	types := make([]Writable, 0)
 	spec := schema.Value
-
-	if isErr {
-		types = append(types, typeAssertionDeclaration{
-			typ: name,
-		})
-	}
 
 	switch {
 	case len(spec.Enum) > 0:
@@ -320,6 +338,12 @@ func generateSchemaComponents(name string, schema *openapi3.SchemaRef, isErr boo
 			slog.Any("name", name),
 			slog.Any("type", spec.Type),
 		)
+	}
+
+	if isErr {
+		types = append(types, typeAssertionDeclaration{
+			typ: name,
+		})
 	}
 
 	return types
