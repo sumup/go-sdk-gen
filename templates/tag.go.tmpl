@@ -34,7 +34,7 @@ type {{.Service}} service
 {{- with .Description}}
 // {{.}}
 {{- end }}
-func (s *{{$.Service}}) {{.FunctionName}}({{.ParamsString}}) {{with .ResponseType}}(*{{.}}, error){{else}}error{{end}} {
+func (s *{{$.Service}}) {{.FunctionName}}({{.ParamsString}}) {{with .ResponseType}}(*{{.Type}}, error){{else}}error{{end}} {
 	{{with .HasBody -}}
     buf := new(bytes.Buffer)
     if err := json.NewEncoder(buf).Encode(body); err != nil {
@@ -86,7 +86,13 @@ func (s *{{$.Service}}) {{.FunctionName}}({{.ParamsString}}) {{with .ResponseTyp
 			return nil, fmt.Errorf("decode response: %s", err.Error())
 		}
 
+		{{ if $responseType.IsOneOf }}
+		return &{{ $responseType.Type }}{
+			{{.}}: &v,
+		}, nil
+		{{- else }}
 		return &v, nil
+		{{- end }}
 		{{- else}}
 		return {{with $responseType}}nil, {{end}}nil
 	    {{- end}}

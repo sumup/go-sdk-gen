@@ -35,6 +35,24 @@ func (tt *TypeDeclaration) String() string {
 	return buf.String()
 }
 
+func (o *OneOfDeclaration) String() string {
+	buf := new(strings.Builder)
+	fmt.Fprintf(buf, "type %s struct {\n", o.Name)
+	for _, opt := range o.Options {
+		fmt.Fprintf(buf, "\t%s *%s\n", opt, opt)
+	}
+	fmt.Fprintf(buf, "}\n\n")
+	for _, opt := range o.Options {
+		fmt.Fprintf(buf, "func (r *%s) As%s() (*%s, bool) {\n", o.Name, opt, opt)
+		fmt.Fprintf(buf, "\tif r.%s != nil {\n", opt)
+		fmt.Fprintf(buf, "\t\treturn r.%s, true\n", opt)
+		fmt.Fprint(buf, "\t}\n\n")
+		fmt.Fprint(buf, "\t\treturn nil, false\n")
+		fmt.Fprint(buf, "\t}\n\n")
+	}
+	return buf.String()
+}
+
 func (f *StructField) String() string {
 	buf := new(strings.Builder)
 	if f.Comment != "" {
