@@ -1,34 +1,34 @@
 package builder
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/iancoleman/strcase"
 )
 
 type templateData struct {
+	Module      string
 	PackageName string
 	Types       []Writable
 	Service     string
 	Methods     []*Method
 }
 
-func (b *Builder) generateTagFile(tagName string, paths *openapi3.Paths) error {
+func (b *Builder) generateResource(tagName string, paths *openapi3.Paths) error {
 	if tagName == "" {
 		return fmt.Errorf("empty tag name")
 	}
 
 	resolvedSchemas := b.resolvedSchemas[tagName]
 	resolvedResponses := b.resolvedResponses[tagName]
-	if len(resolvedSchemas) == 0 && len(resolvedResponses) == 0 {
-		return nil
-	}
 
 	tag := b.tagByTagName(tagName)
 
@@ -59,15 +59,14 @@ func (b *Builder) generateTagFile(tagName string, paths *openapi3.Paths) error {
 		slog.Int("response_structs", len(respTypes)),
 	)
 
-	fName := path.Join(b.cfg.Out, fmt.Sprintf("%s.go", strcase.ToSnake(tag.Name)))
-	f, err := openGeneratedFile(fName)
-	if err != nil {
+	if err := os.MkdirAll(path.Join(b.cfg.Out, strcase.ToSnake(tag.Name)), os.ModePerm); err != nil {
 		return err
 	}
-	defer f.Close()
 
-	if err := b.writeTagFile(f, templateData{
-		PackageName: b.cfg.PkgName,
+	buf := bytes.NewBuffer(nil)
+	if err := b.templates.ExecuteTemplate(buf, "resource.go.tmpl", templateData{
+		PackageName: strcase.ToSnake(tag.Name),
+		Module:      b.cfg.Module,
 		Types:       types,
 		Service:     strcase.ToCamel(tag.Name) + "Service",
 		Methods:     methods,
@@ -75,11 +74,19 @@ func (b *Builder) generateTagFile(tagName string, paths *openapi3.Paths) error {
 		return err
 	}
 
-	return nil
-}
+	fName := path.Join(b.cfg.Out, strcase.ToSnake(tag.Name), fmt.Sprintf("%s.go", strcase.ToSnake(tag.Name)))
+	f, err := openGeneratedFile(fName)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 
-func (b *Builder) writeTagFile(f *os.File, config templateData) error {
-	if err := b.templates.ExecuteTemplate(f, "tag.go.tmpl", config); err != nil {
+	replacer := strings.NewReplacer()
+	if tagName == "shared" {
+		replacer = strings.NewReplacer("shared.", "")
+	}
+
+	if _, err := replacer.WriteString(f, buf.String()); err != nil {
 		return err
 	}
 
@@ -93,16 +100,31 @@ func (b *Builder) writeClientFile(fname string, tags []string) error {
 	}
 	defer f.Close()
 
-	for i := range tags {
-		tags[i] = strcase.ToCamel(tags[i])
+	type resource struct {
+		Name    string
+		Package string
 	}
 
-	slices.Sort(tags)
+	resources := make([]resource, 0, len(tags))
+	for i := range tags {
+		if p := b.pathsByTag[tags[i]]; p.Len() == 0 {
+			continue
+		}
+		resources = append(resources, resource{
+			Name:    strcase.ToCamel(tags[i]),
+			Package: strcase.ToSnake(tags[i]),
+		})
+	}
 
-	if err := b.templates.ExecuteTemplate(f, "client.go.tmpl", map[string]any{
+	slices.SortFunc(resources, func(a, b resource) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	if err := b.templates.ExecuteTemplate(f, "base.go.tmpl", map[string]any{
 		"PackageName": b.cfg.PkgName,
-		"Tags":        tags,
+		"Module":      b.cfg.Module,
 		"Version":     b.spec.Info.Version,
+		"Resources":   resources,
 	}); err != nil {
 		return fmt.Errorf("generate client: %w", err)
 	}
@@ -110,15 +132,22 @@ func (b *Builder) writeClientFile(fname string, tags []string) error {
 	return nil
 }
 
-func (b *Builder) writeTypesFile(fname string) error {
+func (b *Builder) writeClientPackage(fname string) error {
+	if err := os.MkdirAll(path.Dir(fname), os.ModePerm); err != nil {
+		return err
+	}
+
 	f, err := os.OpenFile(fname, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0o755))
 	if err != nil {
 		return fmt.Errorf("create %q: %w", fname, err)
 	}
 	defer f.Close()
 
-	if err := b.templates.ExecuteTemplate(f, "types.go.tmpl", map[string]any{
+	if err := b.templates.ExecuteTemplate(f, "client.go.tmpl", map[string]any{
+		"Name":        b.cfg.Name,
 		"PackageName": b.cfg.PkgName,
+		"Module":      b.cfg.Module,
+		"Version":     b.spec.Info.Version,
 	}); err != nil {
 		return fmt.Errorf("generate client: %w", err)
 	}
@@ -142,25 +171,31 @@ func openGeneratedFile(filename string) (*os.File, error) {
 }
 
 func (b *Builder) addBaseFiles(outDir string) error {
-	for _, fileName := range []string{
-		"version.go",
+	for _, file := range []string{
 		"release-please-config.json",
 	} {
-		file := filepath.Join(outDir, fileName)
-		f, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0o755))
+		fileName := path.Base(file)
+		dest := filepath.Join(outDir, file)
+
+		if err := os.MkdirAll(path.Dir(dest), os.ModePerm); err != nil {
+			return err
+		}
+
+		f, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0o755))
 		if err != nil {
-			return fmt.Errorf("create %q: %w", file, err)
+			return fmt.Errorf("create %q: %w", dest, err)
 		}
 
 		if err := b.templates.ExecuteTemplate(f, fmt.Sprintf("%s.tmpl", fileName), map[string]any{
 			"PackageName": b.cfg.PkgName,
+			"Module":      b.cfg.Module,
 			"Name":        b.cfg.Name,
 		}); err != nil {
 			return fmt.Errorf("generate client: %w", err)
 		}
 
 		if err := f.Close(); err != nil {
-			return fmt.Errorf("close file %q: %w", file, err)
+			return fmt.Errorf("close file %q: %w", dest, err)
 		}
 	}
 

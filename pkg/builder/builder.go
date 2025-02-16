@@ -64,7 +64,6 @@ func New(cfg Config, opts ...Option) *Builder {
 		"httpStatusCode": httpStatusCode,
 	}).ParseFS(templates.Templates, "*")
 	if err != nil {
-		// TODO: error
 		panic(err)
 	}
 
@@ -125,16 +124,16 @@ func (b *Builder) Build() error {
 	}
 
 	for tagName, paths := range b.pathsByTag {
-		if err := b.generateTagFile(tagName, paths); err != nil {
+		if err := b.generateResource(tagName, paths); err != nil {
 			return err
 		}
 	}
 
-	if err := b.writeClientFile(path.Join(b.cfg.Out, "client.go"), slices.Collect(maps.Keys(b.pathsByTag))); err != nil {
+	if err := b.writeClientPackage(path.Join(b.cfg.Out, "client/client.go")); err != nil {
 		return err
 	}
 
-	if err := b.writeTypesFile(path.Join(b.cfg.Out, "types.go")); err != nil {
+	if err := b.writeClientFile(path.Join(b.cfg.Out, "client.go"), slices.Collect(maps.Keys(b.pathsByTag))); err != nil {
 		return err
 	}
 

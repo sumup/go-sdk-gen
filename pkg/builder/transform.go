@@ -20,7 +20,7 @@ func (b *Builder) schemasToTypes(schemas []*openapi3.SchemaRef, errorSchemas map
 	for _, s := range schemas {
 		_, isErr := errorSchemas[s.Ref]
 		name := strcase.ToCamel(strings.TrimPrefix(s.Ref, "#/components/schemas/"))
-		typeTpl := generateSchemaComponents(name, s, isErr)
+		typeTpl := b.generateSchemaComponents(name, s, isErr)
 		allTypes = append(allTypes, typeTpl...)
 	}
 
@@ -60,7 +60,7 @@ func (b *Builder) respToTypes(schemas []*openapi3.ResponseRef, errorSchemas map[
 			}
 			continue
 		}
-		typeTpl := generateSchemaComponents(name, s.Value.Content["application/json"].Schema, isErr)
+		typeTpl := b.generateSchemaComponents(name, s.Value.Content["application/json"].Schema, isErr)
 		allTypes = append(allTypes, typeTpl...)
 	}
 
@@ -92,7 +92,7 @@ func (b *Builder) pathsToBodyTypes(paths *openapi3.Paths) []Writable {
 				mt, ok := opSpec.RequestBody.Value.Content["application/json"]
 				if ok && mt.Schema != nil {
 					name := operationName + "Body"
-					bodyObject, additionalTypes := createObject(mt.Schema.Value, name)
+					bodyObject, additionalTypes := b.createObject(mt.Schema.Value, name)
 					paramTypes = append(paramTypes, bodyObject)
 					paramTypes = append(paramTypes, additionalTypes...)
 				}
@@ -140,7 +140,7 @@ func (b *Builder) pathsToParamTypes(paths *openapi3.Paths) []Writable {
 
 					fields = append(fields, StructField{
 						Name:      name,
-						Type:      convertToValidGoType("", p.Value.Schema),
+						Type:      b.convertToValidGoType("", p.Value.Schema),
 						Parameter: p.Value,
 						Optional:  !p.Value.Required,
 						Comment:   parameterPropertyGodoc(p.Value),
@@ -219,9 +219,9 @@ func (b *Builder) pathsToResponseTypes(paths *openapi3.Paths) []Writable {
 					continue
 				}
 
-				name := getResponseName(operationName, code, content)
+				name := b.getResponseName(operationName, code, content)
 
-				objects := generateSchemaComponents(name, content.Schema, isErr)
+				objects := b.generateSchemaComponents(name, content.Schema, isErr)
 				paramTypes = append(paramTypes, objects...)
 
 				if strings.HasPrefix(code, "2") {
@@ -249,7 +249,7 @@ func (b *Builder) pathsToResponseTypes(paths *openapi3.Paths) []Writable {
 // generateSchemaComponents generates types from schema reference.
 // This should be used to generate top-level types, that is - named schemas that are listed
 // in `#/components/schemas/` part of the OpenAPI specs.
-func generateSchemaComponents(name string, schema *openapi3.SchemaRef, isErr bool) []Writable {
+func (b *Builder) generateSchemaComponents(name string, schema *openapi3.SchemaRef, isErr bool) []Writable {
 	types := make([]Writable, 0)
 	spec := schema.Value
 
@@ -288,7 +288,7 @@ func generateSchemaComponents(name string, schema *openapi3.SchemaRef, isErr boo
 			Schema:  spec,
 		})
 	case spec.Type.Is("array"):
-		typeName, itemTypes := genSchema(spec.Items, stringx.MakeSingular(name))
+		typeName, itemTypes := b.genSchema(spec.Items, stringx.MakeSingular(name))
 		types = append(types, itemTypes...)
 		types = append(types, &TypeDeclaration{
 			Comment: schemaGodoc(name, spec),
@@ -297,7 +297,7 @@ func generateSchemaComponents(name string, schema *openapi3.SchemaRef, isErr boo
 			Schema:  spec,
 		})
 	case spec.Type.Is("object"):
-		object, additionalTypes := createObject(spec, name)
+		object, additionalTypes := b.createObject(spec, name)
 		types = append(types, object)
 		types = append(types, additionalTypes...)
 
@@ -325,7 +325,7 @@ func generateSchemaComponents(name string, schema *openapi3.SchemaRef, isErr boo
 			Schema:  spec,
 		})
 	case spec.AllOf != nil:
-		object, additionalTypes := createAllOf(spec, name)
+		object, additionalTypes := b.createAllOf(spec, name)
 		types = append(types, object)
 		types = append(types, additionalTypes...)
 		if isErr {
@@ -351,7 +351,7 @@ func generateSchemaComponents(name string, schema *openapi3.SchemaRef, isErr boo
 
 // genSchema is very similar to [generateSchemaComponents] but assumes that all schema components
 // have been already generated.
-func genSchema(schema *openapi3.SchemaRef, name string) (string, []Writable) {
+func (b *Builder) genSchema(schema *openapi3.SchemaRef, name string) (string, []Writable) {
 	if schema.Ref != "" {
 		ref := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
 		if len(schema.Value.Enum) > 0 {
@@ -380,11 +380,11 @@ func genSchema(schema *openapi3.SchemaRef, name string) (string, []Writable) {
 	case spec.Type.Is("boolean"):
 		return "bool", nil
 	case spec.Type.Is("array"):
-		typeName, schemas := genSchema(spec.Items, stringx.MakeSingular(name))
+		typeName, schemas := b.genSchema(spec.Items, stringx.MakeSingular(name))
 		types = append(types, schemas...)
 		return "[]" + typeName, types
 	case spec.Type.Is("object"):
-		object, additionalTypes := createObject(spec, name)
+		object, additionalTypes := b.createObject(spec, name)
 		types = append(types, object)
 		types = append(types, additionalTypes...)
 		return name, types
@@ -398,7 +398,7 @@ func genSchema(schema *openapi3.SchemaRef, name string) (string, []Writable) {
 		)
 		return "interface{}", nil
 	case spec.AllOf != nil:
-		object, additionalTypes := createAllOf(spec, name)
+		object, additionalTypes := b.createAllOf(spec, name)
 		types = append(types, object)
 		types = append(types, additionalTypes...)
 		return name, types
@@ -412,7 +412,7 @@ func genSchema(schema *openapi3.SchemaRef, name string) (string, []Writable) {
 }
 
 // createObject converts openapi schema into golang object.
-func createObject(schema *openapi3.Schema, name string) (*TypeDeclaration, []Writable) {
+func (b *Builder) createObject(schema *openapi3.Schema, name string) (*TypeDeclaration, []Writable) {
 	if len(schema.Properties) == 0 &&
 		(schema.AdditionalProperties.Has != nil && *schema.AdditionalProperties.Has) ||
 		(schema.AdditionalProperties.Schema != nil) {
@@ -424,7 +424,7 @@ func createObject(schema *openapi3.Schema, name string) (*TypeDeclaration, []Wri
 		}, nil
 	}
 
-	fields, additionalTypes := createFields(schema.Properties, name, schema.Required)
+	fields, additionalTypes := b.createFields(schema.Properties, name, schema.Required)
 	return &TypeDeclaration{
 		Comment: schemaGodoc(name, schema),
 		Name:    name,
@@ -435,7 +435,7 @@ func createObject(schema *openapi3.Schema, name string) (*TypeDeclaration, []Wri
 }
 
 // createFields returns list of fields for openapi schema properties.
-func createFields(properties map[string]*openapi3.SchemaRef, name string, required []string) ([]StructField, []Writable) {
+func (b *Builder) createFields(properties map[string]*openapi3.SchemaRef, name string, required []string) ([]StructField, []Writable) {
 	fields := []StructField{}
 	types := []Writable{}
 
@@ -444,7 +444,13 @@ func createFields(properties map[string]*openapi3.SchemaRef, name string, requir
 
 	for _, property := range keys {
 		schema := properties[property]
-		typeName, moreTypes := genSchema(schema, name+strcase.ToCamel(property))
+		typeName, moreTypes := b.genSchema(schema, name+strcase.ToCamel(property))
+
+		isShared := slices.Contains(b.schemasByTag["shared"], schema.Ref)
+		if isShared {
+			typeName = "shared." + typeName
+		}
+
 		tags := []string{strcase.ToSnake(property)}
 		if !slices.Contains(required, property) {
 			tags = append(tags, "omitempty")
@@ -588,7 +594,7 @@ func createEnum(schema *openapi3.Schema, name string) Writable {
 }
 
 // createAllOf creates a type declaration for `allOf` schema.
-func createAllOf(schema *openapi3.Schema, name string) (*TypeDeclaration, []Writable) {
+func (b *Builder) createAllOf(schema *openapi3.Schema, name string) (*TypeDeclaration, []Writable) {
 	types := []Writable{}
 	var fields []StructField
 	var seen []string
@@ -600,7 +606,7 @@ func createAllOf(schema *openapi3.Schema, name string) (*TypeDeclaration, []Writ
 			delete(properties, f)
 		}
 
-		objectFields, additionalTypes := createFields(properties, name, s.Value.Required)
+		objectFields, additionalTypes := b.createFields(properties, name, s.Value.Required)
 		fields = append(fields, objectFields...)
 		types = append(types, additionalTypes...)
 
@@ -650,7 +656,7 @@ func uniqueFunc[T any, C comparable](arr []T, keyFn func(T) C) []T {
 	return arr[:n]
 }
 
-func getResponseName(operationName, responseCode string, content *openapi3.MediaType) string {
+func (b *Builder) getResponseName(operationName, responseCode string, content *openapi3.MediaType) string {
 	if content.Schema.Value.Title != "" {
 		return operationName + strcase.ToCamel(content.Schema.Value.Title) + "Response"
 	}

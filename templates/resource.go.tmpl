@@ -20,15 +20,28 @@ import (
 	"time"
 	
 	"gopkg.in/yaml.v2"
+
+	"{{.Module}}/client"
+	{{- if ne .PackageName "shared" }}
+	"{{.Module}}/shared"
+	{{- end }}
 )
 
-{{ range $type := .Types }}
+{{- range $type := .Types }}
 {{ $type.String }}
-{{ end }}
+{{- end }}
 
-{{ if .Service }}
+{{- if eq .PackageName "shared" }}
+{{template "types"}}
+{{- end}}
+
+{{ if ne (len .Methods) 0 }}
 type {{.Service}} struct {
-	client
+	c *client.Client
+}
+
+func New{{.Service}}(c *client.Client) *{{.Service}} {
+	return &{{.Service}}{c: c}
 }
 
 {{ range $method := .Methods }}
@@ -37,28 +50,15 @@ type {{.Service}} struct {
 // {{.}}
 {{- end }}
 func (s *{{$.Service}}) {{.FunctionName}}({{.ParamsString}}) {{with .ResponseType}}(*{{.Type}}, error){{else}}error{{end}} {
-	{{with .HasBody -}}
-    buf := new(bytes.Buffer)
-    if err := json.NewEncoder(buf).Encode(body); err != nil {
-        return {{with $responseType}}nil, {{end}}fmt.Errorf("encoding json body request failed: %v", err)
-    }
-
-	{{ end -}}
 	path := {{.Path}}
 
-    req, err := s.client.NewRequest(ctx, {{.HTTPMethod}}, path, {{if .HasBody }}buf{{else}}http.NoBody{{end}})
+    resp, err := s.c.Call(ctx, {{.HTTPMethod}}, path
+	{{- if .HasBody }}, client.WithJSONBody(body){{ end -}}
+	{{- if .QueryParams }}, client.WithQueryValues(params.QueryValues()){{ end -}}
+	)
 	if err != nil {
 		return {{with $responseType}}nil, {{end}}fmt.Errorf("error building request: %v", err)
 	}
-
-	{{- with .QueryParams }}
-	req.URL.RawQuery = params.QueryValues().Encode()
-	{{- end }}
-
-    resp, err := s.client.Do(req)
-    if err != nil {
-        return {{with $responseType}}nil, {{end}}fmt.Errorf("error sending request: %v", err)
-    }
     defer resp.Body.Close()
 
 	switch resp.StatusCode {

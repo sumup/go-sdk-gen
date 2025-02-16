@@ -22,13 +22,13 @@ const (
 )
 
 type client interface {
-	NewRequest(ctx context.Context,method, path string,body io.Reader) (*http.Request, error)
+	NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error)
 	Do(req *http.Request) (*http.Response, error)
 }
 
 type Client struct {
 	// client is the HTTP client used to communicate with the API.
-	client  *http.Client 
+	client *http.Client
 	// url is the url of the API the requests will be sent to.
 	url string
 	// userAgent is the user-agent header that will be sent with
@@ -38,7 +38,7 @@ type Client struct {
 	key string
 }
 
-// ClientOption is an option for the {{.Name}} API client.
+// ClientOption is an option for the Petstore API client.
 type ClientOption func(c *Client) error
 
 // New creates new HTTP API client.
@@ -47,7 +47,7 @@ type ClientOption func(c *Client) error
 func New(opts ...ClientOption) *Client {
 	c := &Client{
 		client:    http.DefaultClient,
-		userAgent: fmt.Sprintf("{{.PackageName}}/%s", version),
+		userAgent: fmt.Sprintf("petstore/%s", version),
 		url:       APIUrl,
 		key:       os.Getenv("SUMUP_API_KEY"),
 	}
@@ -78,10 +78,10 @@ func (c *Client) WithHTTPClient(client *http.Client) ClientOption {
 
 type request struct {
 	httpClient *http.Client
-	req *http.Request
+	req        *http.Request
 }
 
-// Call executes a {{.Name}} API call. Use [RequestOption]s to configure the request.
+// Call executes a Petstore API call. Use [RequestOption]s to configure the request.
 func (c *Client) Call(
 	ctx context.Context, method, path string, opts ...RequestOption,
 ) (*http.Response, error) {
@@ -91,7 +91,7 @@ func (c *Client) Call(
 	}
 
 	r := &request{
-		req: req,
+		req:        req,
 		httpClient: c.client,
 	}
 
@@ -150,7 +150,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-// RequestOption is an option for the request made by the {{.Name}} [Client].
+// RequestOption is an option for the request made by the Petstore [Client].
 type RequestOption func(req *request) error
 
 // WithHTTPClient returns a [RequestOption] that overrides the underlying [http.Client]

@@ -135,7 +135,7 @@ func (b *Builder) operationToMethod(method, path string, o *openapi3.Operation) 
 		}
 	}
 
-	params, err := buildPathParams("path", o.Parameters)
+	params, err := b.buildPathParams("path", o.Parameters)
 	if err != nil {
 		return nil, fmt.Errorf("build path parameters: %w", err)
 	}
@@ -163,7 +163,7 @@ func (b *Builder) operationToMethod(method, path string, o *openapi3.Operation) 
 	responses := make([]Response, 0, o.Responses.Len())
 	for code, resp := range o.Responses.Map() {
 		operationName := strcase.ToCamel(o.OperationID)
-		typ := responseToType(operationName, resp, code)
+		typ := b.responseToType(operationName, resp, code)
 
 		description := code
 		if resp.Value.Description != nil {
@@ -271,13 +271,13 @@ func (b *Builder) getSuccessResponseType(o *openapi3.Operation) (*ResponseType, 
 		resp := sucessResponses[0]
 		if resp.content.Schema.Ref != "" {
 			return &ResponseType{
-				Type: getReferenceSchema(resp.content.Schema),
+				Type: b.getReferenceSchema(resp.content.Schema),
 			}, nil
 		}
 
 		operationName := strcase.ToCamel(o.OperationID)
 		return &ResponseType{
-			Type: getResponseName(operationName, resp.code, resp.content),
+			Type: b.getResponseName(operationName, resp.code, resp.content),
 		}, nil
 	}
 
@@ -288,7 +288,7 @@ func (b *Builder) getSuccessResponseType(o *openapi3.Operation) (*ResponseType, 
 	}, nil
 }
 
-func responseToType(operationName string, resp *openapi3.ResponseRef, code string) string {
+func (b *Builder) responseToType(operationName string, resp *openapi3.ResponseRef, code string) string {
 	if resp.Ref != "" {
 		return strcase.ToCamel(strings.TrimPrefix(resp.Ref, "#/components/responses/")) + "Response"
 	}
@@ -299,17 +299,17 @@ func responseToType(operationName string, resp *openapi3.ResponseRef, code strin
 	}
 
 	if content.Schema.Ref != "" {
-		return getReferenceSchema(content.Schema)
+		return b.getReferenceSchema(content.Schema)
 	}
 
 	if content.Schema.Value != nil {
-		return getResponseName(operationName, code, content)
+		return b.getResponseName(operationName, code, content)
 	}
 
 	return ""
 }
 
-func buildPathParams(paramType string, params openapi3.Parameters) ([]Parameter, error) {
+func (b *Builder) buildPathParams(paramType string, params openapi3.Parameters) ([]Parameter, error) {
 	if len(params) == 0 {
 		return nil, nil
 	}
@@ -331,7 +331,7 @@ func buildPathParams(paramType string, params openapi3.Parameters) ([]Parameter,
 
 		pathParams = append(pathParams, Parameter{
 			Name: p.Value.Name,
-			Type: convertToValidGoType(p.Value.Name, p.Value.Schema),
+			Type: b.convertToValidGoType(p.Value.Name, p.Value.Schema),
 		})
 	}
 
@@ -339,17 +339,17 @@ func buildPathParams(paramType string, params openapi3.Parameters) ([]Parameter,
 }
 
 // convertToValidGoType converts a schema type to a valid Go type.
-func convertToValidGoType(property string, r *openapi3.SchemaRef) string {
+func (b *Builder) convertToValidGoType(property string, r *openapi3.SchemaRef) string {
 	// Use reference as it is the type
 	if r.Ref != "" {
-		return getReferenceSchema(r)
+		return b.getReferenceSchema(r)
 	}
 
 	if r.Value.AdditionalProperties.Schema != nil {
 		if r.Value.AdditionalProperties.Schema.Ref != "" {
-			return getReferenceSchema(r.Value.AdditionalProperties.Schema)
+			return b.getReferenceSchema(r.Value.AdditionalProperties.Schema)
 		} else if r.Value.AdditionalProperties.Schema.Value.Items.Ref != "" {
-			ref := getReferenceSchema(r.Value.AdditionalProperties.Schema.Value.Items)
+			ref := b.getReferenceSchema(r.Value.AdditionalProperties.Schema.Value.Items)
 			if r.Value.AdditionalProperties.Schema.Value.Items.Value.Type.Is("array") {
 				return "[]" + ref
 			}
@@ -364,7 +364,7 @@ func convertToValidGoType(property string, r *openapi3.SchemaRef) string {
 			return "TODO"
 		}
 
-		return convertToValidGoType(property, r.Value.AllOf[0])
+		return b.convertToValidGoType(property, r.Value.AllOf[0])
 	}
 
 	switch {
@@ -377,7 +377,7 @@ func convertToValidGoType(property string, r *openapi3.SchemaRef) string {
 	case r.Value.Type.Is("boolean"):
 		return "bool"
 	case r.Value.Type.Is("array"):
-		reference := getReferenceSchema(r.Value.Items)
+		reference := b.getReferenceSchema(r.Value.Items)
 		if reference != "" {
 			return fmt.Sprintf("[]%s", reference)
 		}
@@ -400,11 +400,16 @@ func convertToValidGoType(property string, r *openapi3.SchemaRef) string {
 	}
 }
 
-func getReferenceSchema(v *openapi3.SchemaRef) string {
+func (b *Builder) getReferenceSchema(v *openapi3.SchemaRef) string {
 	if v.Ref != "" {
 		ref := strings.TrimPrefix(v.Ref, "#/components/schemas/")
 		if len(v.Value.Enum) > 0 {
 			return strcase.ToCamel(stringx.MakeSingular(ref))
+		}
+
+		isShared := slices.Contains(b.schemasByTag["shared"], v.Ref)
+		if isShared {
+			return "shared." + strcase.ToCamel(ref)
 		}
 
 		return strcase.ToCamel(ref)
@@ -419,9 +424,9 @@ func formatStringType(t *openapi3.Schema) string {
 	case "date-time":
 		return "time.Time"
 	case "date":
-		return "Date"
+		return "shared.Date"
 	case "time":
-		return "Time"
+		return "shared.Time"
 	default:
 		return "string"
 	}

@@ -3,103 +3,23 @@
 package codegen
 
 import (
-	"context"
-	_ "embed"
-	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"strings"
+	"codegen/client"
+	"codegen/shared"
 )
-
-const (
-	// APIUrl is the URL of our API.
-	APIUrl = "https://api.sumup.com"
-)
-
-type client interface {
-	NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error)
-	Do(req *http.Request) (*http.Response, error)
-}
 
 type Client struct {
-	// client is the HTTP client used to communicate with the API.
-	client *http.Client
-	// url is the url of the API the requests will be sent to.
-	url string
-	// userAgent is the user-agent header that will be sent with
-	// every request.
-	userAgent string
-	// key is the API key or access token used for authorization.
-	key string
-
-	Shared *SharedService
+	c      *client.Client
+	Shared *shared.SharedService
 }
-
-type ClientOption func(c *Client) error
 
 // NewClient creates new SumUp API client.
 // The client is by default configured environment variables (`SUMUP_API_KEY`).
 // To override the default configuration use [ClientOption]s.
-func NewClient(opts ...ClientOption) *Client {
-	c := &Client{
-		client:    http.DefaultClient,
-		userAgent: fmt.Sprintf("codegen/%s", version),
-		url:       APIUrl,
-		key:       os.Getenv("SUMUP_API_KEY"),
-	}
+func NewClient(opts ...client.ClientOption) *Client {
+	client := client.New(opts...)
 
-	for _, o := range opts {
-		o(c)
-	}
-	c.Shared = &SharedService{client: c}
+	c := &Client{c: client}
+	c.Shared = shared.NewSharedService(client)
 
 	return c
-}
-
-// WithAPIKey returns a [ClientOption] that configures the client with an API key for authorization.
-func (c *Client) WithAPIKey(key string) ClientOption {
-	return func(c *Client) error {
-		c.key = key
-		return nil
-	}
-}
-
-// WithClient returns a [ClientOption] that configures the client to use a specific http client
-// for underlying requests.
-func (c *Client) WithHTTPClient(client *http.Client) ClientOption {
-	return func(c *Client) error {
-		c.client = client
-		return nil
-	}
-}
-
-func (c *Client) NewRequest(
-	ctx context.Context,
-	method, path string,
-	body io.Reader,
-) (*http.Request, error) {
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
-	req, err := http.NewRequestWithContext(
-		ctx,
-		method,
-		c.url+path,
-		body,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("build request: %s", err.Error())
-	}
-
-	req.Header.Add("Authorization", "Bearer "+c.key)
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("SumUp-Version", version)
-	req.Header.Add("User-Agent", c.userAgent)
-
-	return req, nil
-}
-
-func (c *Client) Do(req *http.Request) (*http.Response, error) {
-	return c.client.Do(req)
 }
