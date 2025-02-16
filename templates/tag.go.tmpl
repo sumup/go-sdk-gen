@@ -27,7 +27,9 @@ import (
 {{ end }}
 
 {{ if .Service }}
-type {{.Service}} service
+type {{.Service}} struct {
+	client
+}
 
 {{ range $method := .Methods }}
 {{ $responseType := .ResponseType}}

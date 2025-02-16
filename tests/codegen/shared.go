@@ -95,7 +95,9 @@ func (p *GetAllStringFormatsParams) QueryValues() url.Values {
 	return q
 }
 
-type SharedService service
+type SharedService struct {
+	client
+}
 
 // GetAllStringFormats: Get all string formats
 func (s *SharedService) GetAllStringFormats(ctx context.Context, params GetAllStringFormatsParams) (*AllStringFormats, error) {

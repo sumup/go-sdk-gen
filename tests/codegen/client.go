@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -16,14 +17,12 @@ const (
 	APIUrl = "https://api.sumup.com"
 )
 
-type service struct {
-	client *Client
+type client interface {
+	NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error)
+	Do(req *http.Request) (*http.Response, error)
 }
 
 type Client struct {
-	// service is the shared service struct re-used for all services.
-	svc service
-
 	// client is the HTTP client used to communicate with the API.
 	client *http.Client
 	// url is the url of the API the requests will be sent to.
@@ -37,45 +36,42 @@ type Client struct {
 	Shared *SharedService
 }
 
+type ClientOption func(c *Client) error
+
 // NewClient creates new SumUp API client.
-// To use APIs that require authentication use [Client.WithAuth].
-func NewClient() *Client {
+// The client is by default configured environment variables (`SUMUP_API_KEY`).
+// To override the default configuration use [ClientOption]s.
+func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
 		client:    http.DefaultClient,
 		userAgent: fmt.Sprintf("codegen/%s", version),
 		url:       APIUrl,
+		key:       os.Getenv("SUMUP_API_KEY"),
 	}
-	c.populate()
+
+	for _, o := range opts {
+		o(c)
+	}
+	c.Shared = &SharedService{client: c}
+
 	return c
 }
 
-// WithAuth returns a copy of the client configured with the provided Authorization key.
-func (c *Client) WithAuth(key string) *Client {
-	clone := Client{
-		client:    c.client,
-		url:       APIUrl,
-		userAgent: c.userAgent,
-		key:       key,
+// WithAPIKey returns a [ClientOption] that configures the client with an API key for authorization.
+func (c *Client) WithAPIKey(key string) ClientOption {
+	return func(c *Client) error {
+		c.key = key
+		return nil
 	}
-	clone.populate()
-	return &clone
 }
 
-// WithClient returns a copy of the client configured with the provided http client.
-func (c *Client) WithHTTPClient(client *http.Client) *Client {
-	clone := Client{
-		client:    client,
-		url:       APIUrl,
-		userAgent: c.userAgent,
-		key:       c.key,
+// WithClient returns a [ClientOption] that configures the client to use a specific http client
+// for underlying requests.
+func (c *Client) WithHTTPClient(client *http.Client) ClientOption {
+	return func(c *Client) error {
+		c.client = client
+		return nil
 	}
-	clone.populate()
-	return &clone
-}
-
-func (c *Client) populate() {
-	c.svc.client = c
-	c.Shared = (*SharedService)(&c.svc)
 }
 
 func (c *Client) NewRequest(
