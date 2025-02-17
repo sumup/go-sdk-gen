@@ -114,8 +114,7 @@ linters-settings:
     local-prefixes: github.com/sumup/go-sdk-gen
   gomoddirectives:
     replace-local: true
-    replace-allow-list:
-      # none
+    replace-allow-list: []
   gosimple:
     checks: ["all"]
   govet:
