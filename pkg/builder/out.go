@@ -171,11 +171,21 @@ func openGeneratedFile(filename string) (*os.File, error) {
 }
 
 func (b *Builder) addBaseFiles(outDir string) error {
-	for _, file := range []string{
-		"release-please-config.json",
+	for _, file := range []struct {
+		source      string
+		destination string
+	}{
+		{
+			source:      "release-please-config.json",
+			destination: "release-please-config.json",
+		},
+		{
+			source:      "version.go",
+			destination: "client/version.go",
+		},
 	} {
-		fileName := path.Base(file)
-		dest := filepath.Join(outDir, file)
+		fileName := path.Base(file.source)
+		dest := filepath.Join(outDir, file.destination)
 
 		if err := os.MkdirAll(path.Dir(dest), os.ModePerm); err != nil {
 			return err
