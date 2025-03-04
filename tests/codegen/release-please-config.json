@@ -11,7 +11,7 @@
 	"packages": {
 		".": {
 			"release-type": "go",
-			"extra-files": ["version.go"]
+			"extra-files": ["client/version.go"]
 		}
 	}
 }
