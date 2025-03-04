@@ -138,9 +138,16 @@ func (b *Builder) pathsToParamTypes(paths *openapi3.Paths) []Writable {
 						name = strcase.ToCamel(strings.TrimPrefix(p.Ref, "#/components/schemas/"))
 					}
 
+					typ := b.convertToValidGoType("", p.Value.Schema)
+
+					isShared := slices.Contains(b.schemasByTag["shared"], p.Value.Schema.Ref)
+					if isShared {
+						typ = "shared." + typ
+					}
+
 					fields = append(fields, StructField{
 						Name:      name,
-						Type:      b.convertToValidGoType("", p.Value.Schema),
+						Type:      typ,
 						Parameter: p.Value,
 						Optional:  !p.Value.Required,
 						Comment:   parameterPropertyGodoc(p.Value),
