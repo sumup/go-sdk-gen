@@ -6,7 +6,7 @@ require (
 	github.com/getkin/kin-openapi v0.129.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lmittmann/tint v1.0.7
-	github.com/urfave/cli/v2 v2.27.5
+	github.com/urfave/cli/v2 v2.27.6
 )
 
 require (
