@@ -29,6 +29,14 @@ func operationGodoc(name string, operation *openapi3.Operation) string {
 		fmt.Fprintf(out, "\n%s: %s", extDescription, operation.ExternalDocs.URL)
 	}
 
+	if operation.Deprecated {
+		if notice, ok := operation.Extensions["x-deprecation-notice"].(string); ok {
+			fmt.Fprintf(out, "\nDeprecated: %s", notice)
+		} else {
+			fmt.Fprint(out, "\nDeprecated: this operation is deprecated")
+		}
+	}
+
 	return formatGodoc(out.String())
 }
 
@@ -140,6 +148,14 @@ func writeSchemaMetainfo(out *strings.Builder, schema *openapi3.Schema) {
 		}
 
 		fmt.Fprintf(out, "\n%s: %s", extDescription, schema.ExternalDocs.URL)
+	}
+
+	if schema.Deprecated {
+		if notice, ok := schema.Extensions["x-deprecation-notice"].(string); ok {
+			fmt.Fprintf(out, "\nDeprecated: %s", notice)
+		} else {
+			fmt.Fprint(out, "\nDeprecated: this operation is deprecated")
+		}
 	}
 }
 

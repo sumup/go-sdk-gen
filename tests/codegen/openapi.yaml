@@ -37,6 +37,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AllStringFormats'
+  /deprecated:
+    get:
+      summary: Get deprecated
+      operationId: getDeprecated
+      deprecated: true
+      x-deprecation-notice: Use other - non-deprecated - endpoint instead.
+      parameters:
+        - name: param
+          in: query
+          schema:
+            deprecated: true
+            x-deprecation-notice: Use other - non-deprecated - param instead.
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                param:
+                  deprecated: true
+                  x-deprecation-notice: Use other - non-deprecated - field instead.
+                  type: string
+      responses:
+        '200':
+          description: A response containing all support string formats.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  param:
+                    deprecated: true
+                    x-deprecation-notice: Use other - non-deprecated - field instead.
+                    type: string
 components:
   schemas:
     AllEnumTypes:

@@ -77,6 +77,12 @@ type AllStringFormats struct {
 	Time Time `json:"time"`
 }
 
+// GetDeprecatedBody is a schema definition.
+type GetDeprecatedBody struct {
+	// Deprecated: Use other - non-deprecated - field instead.
+	Param *string `json:"param,omitempty"`
+}
+
 // GetAllStringFormatsParams: query parameters for getAllStringFormats
 type GetAllStringFormatsParams struct {
 	Date *Date
@@ -96,6 +102,28 @@ func (p *GetAllStringFormatsParams) QueryValues() url.Values {
 	}
 
 	return q
+}
+
+// GetDeprecatedParams: query parameters for getDeprecated
+type GetDeprecatedParams struct {
+	Param *string
+}
+
+// QueryValues converts [GetDeprecatedParams] into [url.Values].
+func (p *GetDeprecatedParams) QueryValues() url.Values {
+	q := make(url.Values)
+
+	if p.Param != nil {
+		q.Set("param", *p.Param)
+	}
+
+	return q
+}
+
+// GetDeprecated200Response is a schema definition.
+type GetDeprecated200Response struct {
+	// Deprecated: Use other - non-deprecated - field instead.
+	Param *string `json:"param,omitempty"`
 }
 
 type Date struct{ time.Time }
@@ -192,6 +220,31 @@ func (s *SharedService) GetAllEnumTypes(ctx context.Context) (*AllEnumTypes, err
 	switch resp.StatusCode {
 	case http.StatusOK:
 		var v AllEnumTypes
+		if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
+			return nil, fmt.Errorf("decode response: %s", err.Error())
+		}
+
+		return &v, nil
+	default:
+		return nil, fmt.Errorf("unexpected response %d: %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+}
+
+// GetDeprecated: Get deprecated
+//
+// Deprecated: Use other - non-deprecated - endpoint instead.
+func (s *SharedService) GetDeprecated(ctx context.Context, body GetDeprecatedBody, params GetDeprecatedParams) (*GetDeprecated200Response, error) {
+	path := fmt.Sprintf("/deprecated")
+
+	resp, err := s.c.Call(ctx, http.MethodGet, path, client.WithJSONBody(body), client.WithQueryValues(params.QueryValues()))
+	if err != nil {
+		return nil, fmt.Errorf("error building request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var v GetDeprecated200Response
 		if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
 			return nil, fmt.Errorf("decode response: %s", err.Error())
 		}
