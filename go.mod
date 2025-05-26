@@ -3,7 +3,7 @@ module github.com/sumup/go-sdk-gen
 go 1.23.0
 
 require (
-	github.com/getkin/kin-openapi v0.131.0
+	github.com/getkin/kin-openapi v0.132.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lmittmann/tint v1.1.0
 	github.com/urfave/cli/v2 v2.27.6
