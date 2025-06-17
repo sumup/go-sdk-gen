@@ -111,6 +111,11 @@ func paramToString(name string, param *openapi3.Parameter) string {
 		return fmt.Sprintf("string(%s)", name)
 	}
 
+	if param.Schema.Value.Nullable {
+		name = strings.TrimPrefix(name, "*")
+		return fmt.Sprintf("%s.String()", name)
+	}
+
 	switch {
 	case param.Schema.Value.Type.Is("string"):
 		switch param.Schema.Value.Format {

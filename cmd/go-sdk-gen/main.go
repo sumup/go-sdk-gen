@@ -18,8 +18,8 @@ func main() {
 
 func App() *cli.App {
 	return &cli.App{
-		Name:           "sdkgen",
-		Usage:          "Golang SDK generator.",
+		Name:           "go-sdk-gen",
+		Usage:          "Go SDK generator.",
 		DefaultCommand: "generate",
 		Before: func(ctx *cli.Context) error {
 			logger := slog.New(tint.NewHandler(os.Stderr, nil))
