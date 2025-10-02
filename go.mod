@@ -3,7 +3,7 @@ module github.com/sumup/go-sdk-gen
 go 1.23.0
 
 require (
-	github.com/getkin/kin-openapi v0.132.0
+	github.com/getkin/kin-openapi v0.133.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lmittmann/tint v1.1.2
 	github.com/urfave/cli/v2 v2.27.7
@@ -21,6 +21,7 @@ require (
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
+	github.com/woodsbury/decimal128 v1.3.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
