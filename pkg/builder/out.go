@@ -183,6 +183,10 @@ func (b *Builder) addBaseFiles(outDir string) error {
 			source:      "version.go",
 			destination: "client/version.go",
 		},
+		{
+			source:      "nullable.go",
+			destination: "nullable/field.go",
+		},
 	} {
 		fileName := path.Base(file.source)
 		dest := filepath.Join(outDir, file.destination)
