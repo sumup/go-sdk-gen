@@ -140,6 +140,7 @@ func (b *Builder) operationToMethod(method, path string, o *openapi3.Operation) 
 		return nil, fmt.Errorf("build path parameters: %w", err)
 	}
 
+	hasBody := false
 	if o.RequestBody != nil {
 		mt, ok := o.RequestBody.Value.Content["application/json"]
 		if ok && mt.Schema != nil {
@@ -147,6 +148,7 @@ func (b *Builder) operationToMethod(method, path string, o *openapi3.Operation) 
 				Name: "body",
 				Type: strcase.ToCamel(o.OperationID) + "Body",
 			})
+			hasBody = true
 		}
 	}
 
@@ -217,7 +219,7 @@ func (b *Builder) operationToMethod(method, path string, o *openapi3.Operation) 
 		Path:         pathBuilder(path),
 		PathParams:   params,
 		QueryParams:  queryParams,
-		HasBody:      o.RequestBody != nil,
+		HasBody:      hasBody,
 		Responses:    responses,
 	}, nil
 }
@@ -256,10 +258,12 @@ func (b *Builder) getSuccessResponseType(o *openapi3.Operation) (*ResponseType, 
 		}
 
 		if content, ok := response.Value.Content["application/json"]; ok {
-			successResponses = append(successResponses, responseInfo{
-				content: content,
-				code:    name,
-			})
+			if content.Schema != nil {
+				successResponses = append(successResponses, responseInfo{
+					content: content,
+					code:    name,
+				})
+			}
 		}
 	}
 
