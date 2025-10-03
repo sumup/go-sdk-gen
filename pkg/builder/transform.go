@@ -346,10 +346,12 @@ func (b *Builder) generateSchemaComponents(name string, schema *openapi3.SchemaR
 			})
 		}
 	default:
-		slog.Warn("skipping unknown type",
-			slog.Any("name", name),
-			slog.Any("type", spec.Type),
-		)
+		if spec.Type != nil {
+			slog.Warn("skipping unknown type",
+				slog.Any("name", name),
+				slog.Any("type", spec.Type),
+			)
+		}
 	}
 
 	if isErr {
@@ -415,10 +417,12 @@ func (b *Builder) genSchema(schema *openapi3.SchemaRef, name string) (string, []
 		types = append(types, additionalTypes...)
 		return name, types
 	default:
-		slog.Warn("skipping unknown type",
-			slog.Any("name", name),
-			slog.Any("type", spec.Type),
-		)
+		if spec.Type != nil {
+			slog.Warn("skipping unknown type",
+				slog.Any("name", name),
+				slog.Any("type", spec.Type),
+			)
+		}
 		return "interface{}", nil
 	}
 }

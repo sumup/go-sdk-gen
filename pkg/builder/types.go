@@ -132,8 +132,10 @@ func paramToString(name string, param *openapi3.Parameter) string {
 		return fmt.Sprintf("strconv.FormatBool(%s)", name)
 	case param.Schema.Value.Type.Is("number"):
 		return fmt.Sprintf("strconv.FormatFloat(%s, 'f', -1, 64)", name)
+	case param.Schema.Value.Type.Is("array"):
+		return name
 	default:
-		slog.Info("need to implement conversion for",
+		slog.Warn("need to implement conversion for",
 			slog.String("ref", param.Schema.Ref),
 			slog.String("type", strings.Join(param.Schema.Value.Type.Slice(), ",")),
 			slog.String("name", name),
