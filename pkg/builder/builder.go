@@ -332,7 +332,7 @@ func (b *Builder) collectResponses() {
 
 // Collect the schemas that are referenced in the response body of the given operation.
 func (b *Builder) collectSchemasInResponse(op *openapi3.Operation) []*openapi3.SchemaRef {
-	if op.Responses == nil {
+	if op.Responses == nil || op.Responses.Len() == 0 {
 		return nil
 	}
 
@@ -341,6 +341,9 @@ func (b *Builder) collectSchemasInResponse(op *openapi3.Operation) []*openapi3.S
 		// TODO: handle content-type correctly
 		for _, mediaType := range response.Value.Content {
 			schema := mediaType.Schema
+			if schema == nil {
+				continue
+			}
 			if code == "default" || !strings.HasPrefix(code, "2") {
 				b.errorSchemas[schema.Ref] = struct{}{}
 			}
@@ -390,6 +393,9 @@ func collectSchemasInRequest(op *openapi3.Operation) []*openapi3.SchemaRef {
 
 	// Iterate over the responses of the operation
 	for _, mediaType := range op.RequestBody.Value.Content {
+		if mediaType.Schema == nil {
+			continue
+		}
 		schemas = append(schemas, mediaType.Schema)
 	}
 
@@ -414,7 +420,14 @@ func collectReferencedSchemasRecursive(
 	schema *openapi3.SchemaRef,
 	referencedSchemasMap map[string]*openapi3.SchemaRef,
 ) {
-	referencedSchemasMap[schema.Ref] = schema
+	if schema == nil {
+		return
+	}
+
+	// save referenced schemas for later lookup
+	if schema.Ref != "" {
+		referencedSchemasMap[schema.Ref] = schema
+	}
 
 	if schema.Value.Type.Is("object") {
 		for _, prop := range schema.Value.Properties {

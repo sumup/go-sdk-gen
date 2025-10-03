@@ -233,7 +233,7 @@ func (b *Builder) getSuccessResponseType(o *openapi3.Operation) (*ResponseType, 
 		code    string
 	}
 
-	sucessResponses := make([]responseInfo, 0)
+	successResponses := make([]responseInfo, 0)
 	for name, response := range o.Responses.Map() {
 		// TODO: throw error here?
 		if name == "default" {
@@ -256,20 +256,20 @@ func (b *Builder) getSuccessResponseType(o *openapi3.Operation) (*ResponseType, 
 		}
 
 		if content, ok := response.Value.Content["application/json"]; ok {
-			sucessResponses = append(sucessResponses, responseInfo{
+			successResponses = append(successResponses, responseInfo{
 				content: content,
 				code:    name,
 			})
 		}
 	}
 
-	if len(sucessResponses) == 0 {
+	if len(successResponses) == 0 {
 		return nil, nil
 	}
 
-	if len(sucessResponses) == 1 {
-		resp := sucessResponses[0]
-		if resp.content.Schema.Ref != "" {
+	if len(successResponses) == 1 {
+		resp := successResponses[0]
+		if resp.content.Schema != nil && resp.content.Schema.Ref != "" {
 			return &ResponseType{
 				Type: b.getReferenceSchema(resp.content.Schema),
 			}, nil
@@ -295,6 +295,10 @@ func (b *Builder) responseToType(operationName string, resp *openapi3.ResponseRe
 
 	content, ok := resp.Value.Content["application/json"]
 	if !ok {
+		return ""
+	}
+
+	if content.Schema == nil {
 		return ""
 	}
 
