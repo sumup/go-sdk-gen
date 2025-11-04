@@ -432,9 +432,11 @@ func formatStringType(t *openapi3.Schema) string {
 	case "date-time":
 		return "time.Time"
 	case "date":
-		return "shared.Date"
+		return "datetime.Date"
 	case "time":
-		return "shared.Time"
+		return "datetime.Time"
+	case "password":
+		return "secret.Secret"
 	default:
 		return "string"
 	}

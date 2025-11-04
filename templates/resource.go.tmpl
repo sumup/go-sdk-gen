@@ -22,6 +22,8 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"{{.Module}}/client"
+	"{{.Module}}/secret"
+	"{{.Module}}/datetime"
 	{{- if ne .PackageName "shared" }}
 	"{{.Module}}/shared"
 	{{- end }}
@@ -30,10 +32,6 @@ import (
 {{- range $type := .Types }}
 {{ $type.String }}
 {{- end }}
-
-{{- if eq .PackageName "shared" }}
-{{template "types"}}
-{{- end}}
 
 {{ if ne (len .Methods) 0 }}
 type {{.Service}} struct {
