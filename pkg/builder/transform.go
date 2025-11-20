@@ -258,6 +258,13 @@ func (b *Builder) pathsToResponseTypes(paths *openapi3.Paths) []Writable {
 	return paramTypes
 }
 
+func possiblyNullable(typ string, schema *openapi3.Schema) string {
+	if schema.Nullable {
+		return fmt.Sprintf("nullable.Field[%s]", typ)
+	}
+	return typ
+}
+
 // generateSchemaComponents generates types from schema reference.
 // This should be used to generate top-level types, that is - named schemas that are listed
 // in `#/components/schemas/` part of the OpenAPI specs.
@@ -274,28 +281,28 @@ func (b *Builder) generateSchemaComponents(name string, schema *openapi3.SchemaR
 	case spec.Type.Is("string"):
 		types = append(types, &TypeDeclaration{
 			Comment: schemaGodoc(name, spec),
-			Type:    "string",
+			Type:    possiblyNullable("string", spec),
 			Name:    name,
 			Schema:  spec,
 		})
 	case spec.Type.Is("integer"):
 		types = append(types, &TypeDeclaration{
 			Comment: schemaGodoc(name, spec),
-			Type:    "int64",
+			Type:    possiblyNullable("int64", spec),
 			Name:    name,
 			Schema:  spec,
 		})
 	case spec.Type.Is("number"):
 		types = append(types, &TypeDeclaration{
 			Comment: schemaGodoc(name, spec),
-			Type:    "float64",
+			Type:    possiblyNullable("float64", spec),
 			Name:    name,
 			Schema:  spec,
 		})
 	case spec.Type.Is("boolean"):
 		types = append(types, &TypeDeclaration{
 			Comment: schemaGodoc(name, spec),
-			Type:    "bool",
+			Type:    possiblyNullable("bool", spec),
 			Name:    name,
 			Schema:  spec,
 		})
@@ -304,7 +311,7 @@ func (b *Builder) generateSchemaComponents(name string, schema *openapi3.SchemaR
 		types = append(types, itemTypes...)
 		types = append(types, &TypeDeclaration{
 			Comment: schemaGodoc(name, spec),
-			Type:    fmt.Sprintf("[]%s", typeName),
+			Type:    possiblyNullable(fmt.Sprintf("[]%s", typeName), spec),
 			Name:    name,
 			Schema:  spec,
 		})
@@ -386,13 +393,13 @@ func (b *Builder) genSchema(schema *openapi3.SchemaRef, name string) (string, []
 		}
 		return stringx.MakeSingular(name), types
 	case spec.Type.Is("string"):
-		return formatStringType(schema.Value), nil
+		return possiblyNullable(formatStringType(schema.Value), spec), nil
 	case spec.Type.Is("integer"):
 		return "int", nil
 	case spec.Type.Is("number"):
 		return "float64", nil
 	case spec.Type.Is("boolean"):
-		return "bool", nil
+		return possiblyNullable("bool", spec), nil
 	case spec.Type.Is("array"):
 		typeName, schemas := b.genSchema(spec.Items, stringx.MakeSingular(name))
 		types = append(types, schemas...)
@@ -471,7 +478,9 @@ func (b *Builder) createFields(properties map[string]*openapi3.SchemaRef, name s
 		if !slices.Contains(required, property) {
 			tags = append(tags, "omitempty")
 		}
+
 		optional := !slices.Contains(required, property)
+
 		fields = append(fields, StructField{
 			Name:    property,
 			Type:    typeName,
