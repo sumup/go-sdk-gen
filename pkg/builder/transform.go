@@ -145,11 +145,14 @@ func (b *Builder) pathsToParamTypes(paths *openapi3.Paths) []Writable {
 						typ = "shared." + typ
 					}
 
+					optional := !p.Value.Required
+					pointer := shouldUsePointer(optional, p.Value.Schema, typ)
 					fields = append(fields, StructField{
 						Name:      name,
 						Type:      typ,
 						Parameter: p.Value,
-						Optional:  !p.Value.Required,
+						Optional:  optional,
+						Pointer:   pointer,
 						Comment:   parameterPropertyGodoc(p.Value),
 					})
 				}
@@ -427,11 +430,44 @@ func (b *Builder) genSchema(schema *openapi3.SchemaRef, name string) (string, []
 	}
 }
 
+func isAdditionalPropertiesMap(schema *openapi3.Schema) bool {
+	if schema == nil {
+		return false
+	}
+	if len(schema.Properties) != 0 {
+		return false
+	}
+	if schema.AdditionalProperties.Has != nil && *schema.AdditionalProperties.Has {
+		return true
+	}
+	return schema.AdditionalProperties.Schema != nil
+}
+
+func isArraySchema(schema *openapi3.Schema) bool {
+	if schema == nil {
+		return false
+	}
+	return schema.Type.Is("array")
+}
+
+func shouldUsePointer(optional bool, schema *openapi3.SchemaRef, typeName string) bool {
+	if !optional {
+		return false
+	}
+	if schema != nil && schema.Value != nil {
+		if isAdditionalPropertiesMap(schema.Value) || isArraySchema(schema.Value) {
+			return false
+		}
+	}
+	if strings.HasPrefix(typeName, "[]") {
+		return false
+	}
+	return true
+}
+
 // createObject converts openapi schema into golang object.
 func (b *Builder) createObject(schema *openapi3.Schema, name string) (*TypeDeclaration, []Writable) {
-	if len(schema.Properties) == 0 &&
-		(schema.AdditionalProperties.Has != nil && *schema.AdditionalProperties.Has) ||
-		(schema.AdditionalProperties.Schema != nil) {
+	if isAdditionalPropertiesMap(schema) {
 		return &TypeDeclaration{
 			Comment: schemaGodoc(name, schema),
 			Name:    name,
@@ -472,6 +508,7 @@ func (b *Builder) createFields(properties map[string]*openapi3.SchemaRef, name s
 			tags = append(tags, "omitempty")
 		}
 		optional := !slices.Contains(required, property)
+		pointer := shouldUsePointer(optional, schema, typeName)
 		fields = append(fields, StructField{
 			Name:    property,
 			Type:    typeName,
@@ -480,6 +517,7 @@ func (b *Builder) createFields(properties map[string]*openapi3.SchemaRef, name s
 				"json": tags,
 			},
 			Optional: optional,
+			Pointer:  pointer,
 		})
 		types = append(types, moreTypes...)
 	}

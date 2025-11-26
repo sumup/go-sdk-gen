@@ -43,6 +43,8 @@ type StructField struct {
 	Tags map[string][]string
 	// Optional field.
 	Optional bool
+	// Pointer indicates whether the field should be a pointer in the generated struct.
+	Pointer bool
 
 	Comment string
 

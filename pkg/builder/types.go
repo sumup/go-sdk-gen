@@ -75,7 +75,7 @@ func (f *StructField) String() string {
 	}
 
 	name = strcase.ToCamel(name)
-	if f.Optional {
+	if f.Pointer {
 		fmt.Fprintf(buf, "\t%s *%s", name, f.Type)
 	} else {
 		fmt.Fprintf(buf, "\t%s %s", name, f.Type)
