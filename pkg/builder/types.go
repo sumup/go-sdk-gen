@@ -156,21 +156,10 @@ func (e toQueryValues) String() string {
 	for _, f := range e.Typ.Fields {
 		name := strcase.ToCamel(f.Name)
 		if f.Parameter.Schema.Value.Type.Is("array") {
-			if f.Parameter.Required {
-				field := fmt.Sprintf("p.%s", name)
-				fmt.Fprintf(buf, "\tfor _, v := range %s {\n", field)
-				fmt.Fprintf(buf, "\t\tq.Add(%q, %s)\n", f.Name, paramToString("v", f.Parameter))
-				fmt.Fprintf(buf, "\t}\n")
-			} else {
-				fmt.Fprintf(buf, "\tif p.%s != nil {\n", name)
-
-				field := fmt.Sprintf("*p.%s", name)
-				fmt.Fprintf(buf, "\t\tfor _, v := range %s {\n", field)
-				fmt.Fprintf(buf, "\t\t\tq.Add(%q, %s)\n", f.Name, paramToString("v", f.Parameter))
-				fmt.Fprintf(buf, "\t\t}\n")
-
-				fmt.Fprintf(buf, "\t}\n")
-			}
+			field := fmt.Sprintf("p.%s", name)
+			fmt.Fprintf(buf, "\tfor _, v := range %s {\n", field)
+			fmt.Fprintf(buf, "\t\tq.Add(%q, %s)\n", f.Name, paramToString("v", f.Parameter))
+			fmt.Fprintf(buf, "\t}\n")
 		} else {
 			if f.Parameter.Required {
 				field := fmt.Sprintf("p.%s", name)
