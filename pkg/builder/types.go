@@ -127,11 +127,25 @@ func paramToString(name string, param *openapi3.Parameter) string {
 			return name
 		}
 	case param.Schema.Value.Type.Is("integer"):
-		return fmt.Sprintf("strconv.Itoa(%s)", name)
+		switch param.Schema.Value.Format {
+		case "int32":
+			return fmt.Sprintf("strconv.FormatInt(int64(%s), 10)", name)
+		case "int64":
+			return fmt.Sprintf("strconv.FormatInt(%s, 10)", name)
+		default:
+			return fmt.Sprintf("strconv.Itoa(%s)", name)
+		}
 	case param.Schema.Value.Type.Is("boolean"):
 		return fmt.Sprintf("strconv.FormatBool(%s)", name)
 	case param.Schema.Value.Type.Is("number"):
-		return fmt.Sprintf("strconv.FormatFloat(%s, 'f', -1, 64)", name)
+		switch param.Schema.Value.Format {
+		case "float":
+			return fmt.Sprintf("strconv.FormatFloat(float64(%s), 'f', -1, 32)", name)
+		case "double":
+			return fmt.Sprintf("strconv.FormatFloat(%s, 'f', -1, 64)", name)
+		default:
+			return fmt.Sprintf("strconv.FormatFloat(%s, 'f', -1, 64)", name)
+		}
 	case param.Schema.Value.Type.Is("array"):
 		return name
 	default:

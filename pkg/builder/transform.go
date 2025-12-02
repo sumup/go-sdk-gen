@@ -284,14 +284,14 @@ func (b *Builder) generateSchemaComponents(name string, schema *openapi3.SchemaR
 	case spec.Type.Is("integer"):
 		types = append(types, &TypeDeclaration{
 			Comment: schemaGodoc(name, spec),
-			Type:    "int64",
+			Type:    formatIntegerType(spec),
 			Name:    name,
 			Schema:  spec,
 		})
 	case spec.Type.Is("number"):
 		types = append(types, &TypeDeclaration{
 			Comment: schemaGodoc(name, spec),
-			Type:    "float64",
+			Type:    formatNumberType(spec),
 			Name:    name,
 			Schema:  spec,
 		})
@@ -391,9 +391,9 @@ func (b *Builder) genSchema(schema *openapi3.SchemaRef, name string) (string, []
 	case spec.Type.Is("string"):
 		return formatStringType(schema.Value), nil
 	case spec.Type.Is("integer"):
-		return "int", nil
+		return formatIntegerType(schema.Value), nil
 	case spec.Type.Is("number"):
-		return "float64", nil
+		return formatNumberType(schema.Value), nil
 	case spec.Type.Is("boolean"):
 		return "bool", nil
 	case spec.Type.Is("array"):
@@ -587,6 +587,36 @@ func createEnum(schema *openapi3.Schema, name string) Writable {
 			}
 		}
 
+		if schema.Format == "int32" {
+			values := make([]EnumOption[int32], 0)
+			for _, v := range schema.Enum {
+				option, ok := v.(float64)
+				if !ok {
+					slog.Warn("invalid enum value",
+						slog.String("enum", name),
+						slog.String("expected", "int32"),
+						slog.String("got", fmt.Sprintf("%T", v)),
+					)
+					continue
+				}
+
+				values = append(values, EnumOption[int32]{
+					Name:  enumName + strcase.ToCamel(fmt.Sprintf("%v", option)),
+					Value: int32(option),
+				})
+			}
+
+			return &EnumDeclaration[int32]{
+				Type: TypeDeclaration{
+					Comment: schemaGodoc(name, schema),
+					Name:    stringx.MakeSingular(name),
+					Type:    "int32",
+					Schema:  schema,
+				},
+				Values: values,
+			}
+		}
+
 		values := make([]EnumOption[int], 0)
 		for _, v := range schema.Enum {
 			option, ok := v.(float64)
@@ -615,6 +645,36 @@ func createEnum(schema *openapi3.Schema, name string) Writable {
 			Values: values,
 		}
 	case schema.Type.Is("number"):
+		if schema.Format == "float" {
+			values := make([]EnumOption[float32], 0)
+			for _, v := range schema.Enum {
+				option, ok := v.(float64)
+				if !ok {
+					slog.Warn("invalid enum value",
+						slog.String("enum", name),
+						slog.String("expected", "float32"),
+						slog.String("got", fmt.Sprintf("%T", v)),
+					)
+					continue
+				}
+
+				values = append(values, EnumOption[float32]{
+					Name:  enumName + strcase.ToCamel(fmt.Sprintf("%v", option)),
+					Value: float32(option),
+				})
+			}
+
+			return &EnumDeclaration[float32]{
+				Type: TypeDeclaration{
+					Comment: schemaGodoc(name, schema),
+					Name:    stringx.MakeSingular(name),
+					Type:    "float32",
+					Schema:  schema,
+				},
+				Values: values,
+			}
+		}
+
 		values := make([]EnumOption[float64], 0)
 		for _, v := range schema.Enum {
 			option, ok := v.(float64)

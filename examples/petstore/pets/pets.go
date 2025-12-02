@@ -16,7 +16,7 @@ import (
 // Error is a schema definition.
 type Error struct {
 	// Format: int32
-	Code    int    `json:"code"`
+	Code    int32  `json:"code"`
 	Message string `json:"message"`
 }
 
@@ -29,7 +29,7 @@ var _ error = (*Error)(nil)
 // Pet is a schema definition.
 type Pet struct {
 	// Format: int64
-	Id   int     `json:"id"`
+	ID   int64   `json:"id"`
 	Name string  `json:"name"`
 	Tag  *string `json:"tag,omitempty"`
 }
@@ -41,7 +41,7 @@ type Pets []Pet
 // CreatePetsBody is a schema definition.
 type CreatePetsBody struct {
 	// Format: int64
-	Id   int     `json:"id"`
+	ID   int64   `json:"id"`
 	Name string  `json:"name"`
 	Tag  *string `json:"tag,omitempty"`
 }
@@ -49,7 +49,7 @@ type CreatePetsBody struct {
 // ListPetsParams: query parameters for listPets
 type ListPetsParams struct {
 	// How many items to return at one time (max 100)
-	Limit *int
+	Limit *int32
 }
 
 // QueryValues converts [ListPetsParams] into [url.Values].
@@ -57,7 +57,7 @@ func (p *ListPetsParams) QueryValues() url.Values {
 	q := make(url.Values)
 
 	if p.Limit != nil {
-		q.Set("limit", strconv.Itoa(*p.Limit))
+		q.Set("limit", strconv.FormatInt(int64(*p.Limit), 10))
 	}
 
 	return q

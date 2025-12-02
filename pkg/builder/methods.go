@@ -379,9 +379,9 @@ func (b *Builder) convertToValidGoType(property string, r *openapi3.SchemaRef) s
 	case r.Value.Type.Is("string"):
 		return formatStringType(r.Value)
 	case r.Value.Type.Is("integer"):
-		return "int"
+		return formatIntegerType(r.Value)
 	case r.Value.Type.Is("number"):
-		return "float64"
+		return formatNumberType(r.Value)
 	case r.Value.Type.Is("boolean"):
 		return "bool"
 	case r.Value.Type.Is("array"):
@@ -439,5 +439,29 @@ func formatStringType(t *openapi3.Schema) string {
 		return "secret.Secret"
 	default:
 		return "string"
+	}
+}
+
+// formatIntegerType converts an integer schema to a valid Go type based on format.
+func formatIntegerType(t *openapi3.Schema) string {
+	switch t.Format {
+	case "int32":
+		return "int32"
+	case "int64":
+		return "int64"
+	default:
+		return "int"
+	}
+}
+
+// formatNumberType converts a number schema to a valid Go type based on format.
+func formatNumberType(t *openapi3.Schema) string {
+	switch t.Format {
+	case "float":
+		return "float32"
+	case "double":
+		return "float64"
+	default:
+		return "float64"
 	}
 }

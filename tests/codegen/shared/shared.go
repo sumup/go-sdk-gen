@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 
 	"codegen/client"
+	"codegen/datetime"
 )
 
 // AllEnumTypes is a schema definition.
@@ -51,7 +51,7 @@ const (
 )
 
 // AllEnumTypesNumberWithFormatEnum is a schema definition.
-type AllEnumTypesNumberWithFormatEnum float64
+type AllEnumTypesNumberWithFormatEnum float32
 
 const (
 	AllEnumTypesNumberWithFormatEnum1618 AllEnumTypesNumberWithFormatEnum = 1.618
@@ -70,11 +70,11 @@ const (
 // AllStringFormats is a schema definition.
 type AllStringFormats struct {
 	// Format: date
-	Date Date `json:"date"`
+	Date datetime.Date `json:"date"`
 	// Format: date_time
 	DateTime string `json:"date_time"`
 	// Format: time
-	Time Time `json:"time"`
+	Time datetime.Time `json:"time"`
 }
 
 // GetDeprecatedBody is a schema definition.
@@ -85,8 +85,8 @@ type GetDeprecatedBody struct {
 
 // GetAllStringFormatsParams: query parameters for getAllStringFormats
 type GetAllStringFormatsParams struct {
-	Date *Date
-	Time *Time
+	Date *datetime.Date
+	Time *datetime.Time
 }
 
 // QueryValues converts [GetAllStringFormatsParams] into [url.Values].
@@ -124,56 +124,6 @@ func (p *GetDeprecatedParams) QueryValues() url.Values {
 type GetDeprecated200Response struct {
 	// Deprecated: Use other - non-deprecated - field instead.
 	Param *string `json:"param,omitempty"`
-}
-
-type Date struct{ time.Time }
-
-func (d Date) String() string {
-	return d.Format(time.DateOnly)
-}
-
-const jsonDateFormat = `"` + time.DateOnly + `"`
-
-var _ json.Unmarshaler = (*Date)(nil)
-
-func (d *Date) UnmarshalJSON(b []byte) (err error) {
-	date, err := time.Parse(jsonDateFormat, string(b))
-	if err != nil {
-		return err
-	}
-	d.Time = date
-	return
-}
-
-var _ json.Marshaler = (*Date)(nil)
-
-func (d Date) MarshalJSON() ([]byte, error) {
-	return []byte(d.Time.Format(jsonDateFormat)), nil
-}
-
-type Time struct{ time.Time }
-
-func (t Time) String() string {
-	return t.Format(time.TimeOnly)
-}
-
-const jsonTimeFormat = `"` + time.TimeOnly + `"`
-
-var _ json.Unmarshaler = (*Time)(nil)
-
-func (t *Time) UnmarshalJSON(b []byte) (err error) {
-	date, err := time.Parse(jsonTimeFormat, string(b))
-	if err != nil {
-		return err
-	}
-	t.Time = date
-	return
-}
-
-var _ json.Marshaler = (*Time)(nil)
-
-func (t Time) MarshalJSON() ([]byte, error) {
-	return []byte(t.Time.Format(jsonTimeFormat)), nil
 }
 
 type SharedService struct {
