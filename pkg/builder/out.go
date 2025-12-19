@@ -79,7 +79,7 @@ func (b *Builder) generateResource(tagName string, paths *openapi3.Paths) error 
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	replacer := strings.NewReplacer()
 	if tagName == "shared" {
@@ -98,7 +98,7 @@ func (b *Builder) writeClientFile(fname string, tags []string) error {
 	if err != nil {
 		return fmt.Errorf("create %q: %w", fname, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	type resource struct {
 		Name    string
@@ -141,7 +141,7 @@ func (b *Builder) writeClientPackage(fname string) error {
 	if err != nil {
 		return fmt.Errorf("create %q: %w", fname, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := b.templates.ExecuteTemplate(f, "client.go.tmpl", map[string]any{
 		"Name":        b.cfg.Name,

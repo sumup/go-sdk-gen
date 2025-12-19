@@ -105,15 +105,41 @@ func (et *EnumDeclaration[E]) String() string {
 	return buf.String()
 }
 
+func dereferenceSchema(ref *openapi3.SchemaRef) *openapi3.SchemaRef {
+	if ref == nil {
+		return nil
+	}
+	if ref.Ref != "" || ref.Value == nil {
+		return ref
+	}
+	if len(ref.Value.AllOf) > 0 {
+		return dereferenceSchema(ref.Value.AllOf[0])
+	}
+	return ref
+}
+
 func paramToString(name string, param *openapi3.Parameter) string {
-	// HACK:
-	if param.Schema.Ref != "" {
+	if param == nil || param.Schema == nil {
+		return name
+	}
+
+	schema := dereferenceSchema(param.Schema)
+	if schema == nil {
+		return name
+	}
+
+	// HACK: also handles component references wrapped via allOf used for nullable enums.
+	if schema.Ref != "" {
 		return fmt.Sprintf("string(%s)", name)
 	}
 
+	if schema.Value == nil {
+		return name
+	}
+
 	switch {
-	case param.Schema.Value.Type.Is("string"):
-		switch param.Schema.Value.Format {
+	case schema.Value.Type.Is("string"):
+		switch schema.Value.Format {
 		case "date-time":
 			name = strings.TrimPrefix(name, "*")
 			return fmt.Sprintf("%s.Format(time.RFC3339)", name)
@@ -126,8 +152,8 @@ func paramToString(name string, param *openapi3.Parameter) string {
 		default:
 			return name
 		}
-	case param.Schema.Value.Type.Is("integer"):
-		switch param.Schema.Value.Format {
+	case schema.Value.Type.Is("integer"):
+		switch schema.Value.Format {
 		case "int32":
 			return fmt.Sprintf("strconv.FormatInt(int64(%s), 10)", name)
 		case "int64":
@@ -135,10 +161,10 @@ func paramToString(name string, param *openapi3.Parameter) string {
 		default:
 			return fmt.Sprintf("strconv.Itoa(%s)", name)
 		}
-	case param.Schema.Value.Type.Is("boolean"):
+	case schema.Value.Type.Is("boolean"):
 		return fmt.Sprintf("strconv.FormatBool(%s)", name)
-	case param.Schema.Value.Type.Is("number"):
-		switch param.Schema.Value.Format {
+	case schema.Value.Type.Is("number"):
+		switch schema.Value.Format {
 		case "float":
 			return fmt.Sprintf("strconv.FormatFloat(float64(%s), 'f', -1, 32)", name)
 		case "double":
@@ -146,12 +172,12 @@ func paramToString(name string, param *openapi3.Parameter) string {
 		default:
 			return fmt.Sprintf("strconv.FormatFloat(%s, 'f', -1, 64)", name)
 		}
-	case param.Schema.Value.Type.Is("array"):
+	case schema.Value.Type.Is("array"):
 		return name
 	default:
 		slog.Warn("need to implement conversion for",
-			slog.String("ref", param.Schema.Ref),
-			slog.String("type", strings.Join(param.Schema.Value.Type.Slice(), ",")),
+			slog.String("ref", schema.Ref),
+			slog.String("type", strings.Join(schema.Value.Type.Slice(), ",")),
 			slog.String("name", name),
 		)
 		return name
