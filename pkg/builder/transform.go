@@ -141,7 +141,7 @@ func (b *Builder) pathsToParamTypes(paths *openapi3.Paths) []Writable {
 					typ := b.convertToValidGoType("", p.Value.Schema)
 
 					isShared := slices.Contains(b.schemasByTag["shared"], p.Value.Schema.Ref)
-					if isShared {
+					if isShared && !strings.HasPrefix(typ, "shared.") {
 						typ = "shared." + typ
 					}
 

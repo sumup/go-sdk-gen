@@ -411,11 +411,16 @@ func (b *Builder) convertToValidGoType(property string, r *openapi3.SchemaRef) s
 func (b *Builder) getReferenceSchema(v *openapi3.SchemaRef) string {
 	if v.Ref != "" {
 		ref := strings.TrimPrefix(v.Ref, "#/components/schemas/")
+		isShared := slices.Contains(b.schemasByTag["shared"], v.Ref)
+
 		if len(v.Value.Enum) > 0 {
-			return strcase.ToCamel(stringx.MakeSingular(ref))
+			singularName := strcase.ToCamel(stringx.MakeSingular(ref))
+			if isShared {
+				return "shared." + singularName
+			}
+			return singularName
 		}
 
-		isShared := slices.Contains(b.schemasByTag["shared"], v.Ref)
 		if isShared {
 			return "shared." + strcase.ToCamel(ref)
 		}

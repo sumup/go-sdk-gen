@@ -173,6 +173,10 @@ func paramToString(name string, param *openapi3.Parameter) string {
 			return fmt.Sprintf("strconv.FormatFloat(%s, 'f', -1, 64)", name)
 		}
 	case schema.Value.Type.Is("array"):
+		// For array items that are schema references (e.g., enums), we need to convert each item to string
+		if schema.Value.Items != nil && schema.Value.Items.Ref != "" {
+			return fmt.Sprintf("string(%s)", name)
+		}
 		return name
 	default:
 		slog.Warn("need to implement conversion for",
